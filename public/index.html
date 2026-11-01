@@ -1,0 +1,135 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Share Your Location</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: white;
+            padding: 35px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 380px;
+            margin: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        }
+
+        h1 {
+            color: #172554;
+        }
+
+        p {
+            color: #475569;
+            line-height: 1.6;
+        }
+
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        #result {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>Share Your Location</h1>
+
+        <p>
+            Would you like to share your current location?
+            Your location will only be sent if you choose
+            to allow location access.
+        </p>
+
+        <button onclick="shareLocation()">
+            Share My Location
+        </button>
+
+        <p id="result"></p>
+
+    </div>
+
+    <script>
+        async function shareLocation() {
+
+            const result = document.getElementById("result");
+
+            if (!navigator.geolocation) {
+                result.textContent =
+                    "Your browser does not support location sharing.";
+                return;
+            }
+
+            result.textContent = "Waiting for your permission...";
+
+            navigator.geolocation.getCurrentPosition(
+
+                async function(position) {
+
+                    const locationData = {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude
+                    };
+
+                    result.textContent =
+                        "Thank you! Your location has been shared.";
+
+                    try {
+                        const response = await fetch("/location", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify(locationData)
+                        });
+
+                        if (!response.ok) {
+                            result.textContent =
+                                "We could not submit your location.";
+                        }
+
+                    } catch (error) {
+                        result.textContent =
+                            "Unable to send your location.";
+                    }
+
+                },
+
+                function(error) {
+                    result.textContent =
+                        "Location was not shared. You can continue without sharing.";
+                }
+            );
+        }
+    </script>
+
+</body>
+</html>
