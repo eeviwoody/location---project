@@ -1,0 +1,186 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Private Location Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      margin: 0;
+      padding: 30px 15px;
+      color: #222;
+    }
+    .container {
+      max-width: 850px;
+      margin: 30px auto;
+      background: white;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0 2px 12px #0001;
+    }
+    h1 { text-align: center; }
+    input, button {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      font-size: 16px;
+    }
+    button {
+      background: #1769aa;
+      color: white;
+      border: 0;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #logout { background: #555; }
+    #message { margin: 12px 0; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      padding: 12px;
+      border-bottom: 1px solid #ddd;
+      text-align: left;
+    }
+    th { background: #f0f3f6; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <section id="login-section">
+      <h1>Private Dashboard</h1>
+      <p>Sign in to view locations shared with you.</p>
+      <form id="login-form">
+        <input id="email" type="email" placeholder="Your email" required>
+        <input id="password" type="password" placeholder="Your password" required>
+        <button type="submit">Log In</button>
+      </form>
+    </section>
+
+    <section id="dashboard-section" hidden>
+      <h1>Shared Locations</h1>
+      <button id="refresh">Refresh Locations</button>
+      <button id="logout">Log Out</button>
+      <p id="count"></p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>City</th>
+              <th>Country</th>
+              <th>Date Shared</th>
+            </tr>
+          </thead>
+          <tbody id="locations"></tbody>
+        </table>
+      </div>
+    </section>
+    <p id="message" role="status"></p>
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://mhobttjbvbislkdmctbn.supabase.co";
+    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_rVpDZSRylgbiIYf9B9i2Hg_khd7rB0J";
+
+    const db = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_PUBLISHABLE_KEY
+    );
+
+    const loginSection = document.getElementById("login-section");
+    const dashboardSection = document.getElementById("dashboard-section");
+    const message = document.getElementById("message");
+    const locationsBody = document.getElementById("locations");
+
+    async function loadLocations() {
+      message.textContent = "Loading locations...";
+      locationsBody.replaceChildren();
+
+      const { data, error } = await db
+        .from("shared_locations")
+        .select("id, city, country, created_at")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        message.textContent = "Could not load locations: " + error.message;
+        return;
+      }
+
+      document.getElementById("count").textContent =
+        "Total locations shared: " + data.length;
+
+      data.forEach(location => {
+        const row = document.createElement("tr");
+
+        [location.city, location.country,
+          new Date(location.created_at).toLocaleString()
+        ].forEach(value => {
+          const cell = document.createElement("td");
+          cell.textContent = value || "";
+          row.appendChild(cell);
+        });
+
+        locationsBody.appendChild(row);
+      });
+
+      message.textContent = data.length
+        ? "Locations loaded successfully."
+        : "No locations have been shared yet.";
+    }
+
+    async function checkSession() {
+      const { data } = await db.auth.getSession();
+
+      if (data.session) {
+        loginSection.hidden = true;
+        dashboardSection.hidden = false;
+        await loadLocations();
+      }
+    }
+
+    document.getElementById("login-form").addEventListener("submit",
+      async event => {
+        event.preventDefault();
+        message.textContent = "Signing in...";
+
+        const { error } = await db.auth.signInWithPassword({
+          email: document.getElementById("email").value,
+          password: document.getElementById("password").value
+        });
+
+        if (error) {
+          message.textContent = "Login failed: " + error.message;
+          return;
+        }
+
+        loginSection.hidden = true;
+        dashboardSection.hidden = false;
+        document.getElementById("password").value = "";
+        await loadLocations();
+      }
+    );
+
+    document.getElementById("refresh").addEventListener("click",
+      loadLocations
+    );
+
+    document.getElementById("logout").addEventListener("click",
+      async () => {
+        await db.auth.signOut();
+        dashboardSection.hidden = true;
+        loginSection.hidden = false;
+        locationsBody.replaceChildren();
+        document.getElementById("count").textContent = "";
+        message.textContent = "You have logged out.";
+      }
+    );
+
+    checkSession();
+  </script>
+</body>
+</html>
