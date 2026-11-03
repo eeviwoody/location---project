@@ -5,68 +5,160 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Private Location Dashboard</title>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       font-family: Arial, sans-serif;
       background: #f4f6f8;
       margin: 0;
-      padding: 30px 15px;
+      padding: 25px 15px;
       color: #222;
     }
+
     .container {
-      max-width: 850px;
+      max-width: 950px;
       margin: 30px auto;
       background: white;
       padding: 25px;
-      border-radius: 10px;
+      border-radius: 12px;
       box-shadow: 0 2px 12px #0001;
     }
-    h1 { text-align: center; }
-    input, button {
-      box-sizing: border-box;
+
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #666;
+      margin-bottom: 25px;
+    }
+
+    input, select, button {
       width: 100%;
-      padding: 12px;
+      padding: 13px;
       margin: 8px 0;
       font-size: 16px;
+      border-radius: 6px;
     }
+
+    input, select {
+      border: 1px solid #ccc;
+      background: white;
+    }
+
     button {
       background: #1769aa;
       color: white;
-      border: 0;
-      border-radius: 5px;
+      border: none;
       cursor: pointer;
     }
-    #logout { background: #555; }
-    #message { margin: 12px 0; }
-    .table-wrap { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; }
+
+    button:hover {
+      background: #10558c;
+    }
+
+    #logout {
+      background: #555;
+    }
+
+    #count {
+      font-weight: bold;
+      margin: 20px 0;
+    }
+
+    #message {
+      margin-top: 15px;
+      color: #444;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      margin-top: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 500px;
+    }
+
     th, td {
-      padding: 12px;
+      padding: 14px;
       border-bottom: 1px solid #ddd;
       text-align: left;
     }
-    th { background: #f0f3f6; }
-    [hidden] { display: none !important; }
+
+    th {
+      background: #f0f3f6;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
   </style>
 </head>
+
 <body>
+
   <div class="container">
+
     <section id="login-section">
       <h1>Private Dashboard</h1>
-      <p>Sign in to view locations shared with you.</p>
+      <p class="subtitle">
+        Sign in to view locations shared with you.
+      </p>
+
       <form id="login-form">
-        <input id="email" type="email" placeholder="Your email" required>
-        <input id="password" type="password" placeholder="Your password" required>
+        <input
+          id="email"
+          type="email"
+          placeholder="Your email address"
+          required
+        >
+
+        <input
+          id="password"
+          type="password"
+          placeholder="Your password"
+          required
+        >
+
         <button type="submit">Log In</button>
       </form>
     </section>
 
     <section id="dashboard-section" hidden>
+
       <h1>Shared Locations</h1>
+
+      <p class="subtitle">
+        Manage and view locations shared with you.
+      </p>
+
       <button id="refresh">Refresh Locations</button>
+
       <button id="logout">Log Out</button>
-      <p id="count"></p>
+
+      <p id="count">Total locations shared: 0</p>
+
+      <input
+        id="search"
+        type="text"
+        placeholder="Search by city or country..."
+      >
+
+      <select id="country-filter">
+        <option value="">All Countries</option>
+      </select>
+
       <div class="table-wrap">
         <table>
           <thead>
@@ -76,29 +168,112 @@
               <th>Date Shared</th>
             </tr>
           </thead>
+
           <tbody id="locations"></tbody>
         </table>
       </div>
+
     </section>
+
     <p id="message" role="status"></p>
+
   </div>
 
   <script>
-    const SUPABASE_URL = "https://mhobttjbvbislkdmctbn.supabase.co";
-    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_rVpDZSRylgbiIYf9B9i2Hg_khd7rB0J";
+
+    const SUPABASE_URL =
+      "https://mhobttjbvbislkdmctbn.supabase.co";
+
+    const SUPABASE_PUBLISHABLE_KEY =
+      "sb_publishable_rVpDZSRylgbiIYf9B9i2Hg_khd7rB0J";
 
     const db = window.supabase.createClient(
       SUPABASE_URL,
       SUPABASE_PUBLISHABLE_KEY
     );
 
-    const loginSection = document.getElementById("login-section");
-    const dashboardSection = document.getElementById("dashboard-section");
-    const message = document.getElementById("message");
-    const locationsBody = document.getElementById("locations");
+    const loginSection =
+      document.getElementById("login-section");
+
+    const dashboardSection =
+      document.getElementById("dashboard-section");
+
+    const message =
+      document.getElementById("message");
+
+    const locationsBody =
+      document.getElementById("locations");
+
+    const searchInput =
+      document.getElementById("search");
+
+    const countryFilter =
+      document.getElementById("country-filter");
+
+    let allLocations = [];
+
+    function displayLocations() {
+
+      const searchText =
+        searchInput.value.trim().toLowerCase();
+
+      const selectedCountry =
+        countryFilter.value;
+
+      const filteredLocations = allLocations.filter(location => {
+
+        const city = (location.city || "").toLowerCase();
+
+        const country = (location.country || "").toLowerCase();
+
+        const matchesSearch =
+          city.includes(searchText) ||
+          country.includes(searchText);
+
+        const matchesCountry =
+          !selectedCountry ||
+          location.country === selectedCountry;
+
+        return matchesSearch && matchesCountry;
+
+      });
+
+      locationsBody.replaceChildren();
+
+      filteredLocations.forEach(location => {
+
+        const row = document.createElement("tr");
+
+        const values = [
+          location.city,
+          location.country,
+          new Date(location.created_at).toLocaleString()
+        ];
+
+        values.forEach(value => {
+
+          const cell = document.createElement("td");
+
+          cell.textContent = value || "";
+
+          row.appendChild(cell);
+
+        });
+
+        locationsBody.appendChild(row);
+
+      });
+
+      message.textContent = filteredLocations.length
+        ? "Showing " + filteredLocations.length + " locations."
+        : "No matching locations found.";
+
+    }
 
     async function loadLocations() {
+
       message.textContent = "Loading locations...";
+
       locationsBody.replaceChildren();
 
       const { data, error } = await db
@@ -107,80 +282,173 @@
         .order("created_at", { ascending: false });
 
       if (error) {
-        message.textContent = "Could not load locations: " + error.message;
+
+        message.textContent =
+          "Could not load locations: " + error.message;
+
         return;
+
       }
 
+      allLocations = data || [];
+
       document.getElementById("count").textContent =
-        "Total locations shared: " + data.length;
+        "Total locations shared: " + allLocations.length;
 
-      data.forEach(location => {
-        const row = document.createElement("tr");
+      const countries = [
+        ...new Set(
+          allLocations
+            .map(location => location.country)
+            .filter(Boolean)
+        )
+      ].sort();
 
-        [location.city, location.country,
-          new Date(location.created_at).toLocaleString()
-        ].forEach(value => {
-          const cell = document.createElement("td");
-          cell.textContent = value || "";
-          row.appendChild(cell);
-        });
+      const previousCountry = countryFilter.value;
 
-        locationsBody.appendChild(row);
+      countryFilter.replaceChildren();
+
+      const allOption = document.createElement("option");
+
+      allOption.value = "";
+
+      allOption.textContent = "All Countries";
+
+      countryFilter.appendChild(allOption);
+
+      countries.forEach(country => {
+
+        const option = document.createElement("option");
+
+        option.value = country;
+
+        option.textContent = country;
+
+        countryFilter.appendChild(option);
+
       });
 
-      message.textContent = data.length
-        ? "Locations loaded successfully."
-        : "No locations have been shared yet.";
+      countryFilter.value =
+        countries.includes(previousCountry) ? previousCountry : "";
+
+      displayLocations();
+
     }
 
     async function checkSession() {
-      const { data } = await db.auth.getSession();
+
+      const { data, error } = await db.auth.getSession();
+
+      if (error) {
+
+        message.textContent = "Could not check login: " + error.message;
+
+        return;
+
+      }
 
       if (data.session) {
+
         loginSection.hidden = true;
+
         dashboardSection.hidden = false;
+
         await loadLocations();
+
       }
+
     }
 
-    document.getElementById("login-form").addEventListener("submit",
+    document.getElementById("login-form").addEventListener(
+      "submit",
       async event => {
+
         event.preventDefault();
+
         message.textContent = "Signing in...";
 
         const { error } = await db.auth.signInWithPassword({
+
           email: document.getElementById("email").value,
+
           password: document.getElementById("password").value
+
         });
 
         if (error) {
-          message.textContent = "Login failed: " + error.message;
+
+          message.textContent =
+            "Login failed: " + error.message;
+
           return;
+
         }
 
         loginSection.hidden = true;
+
         dashboardSection.hidden = false;
+
         document.getElementById("password").value = "";
+
         await loadLocations();
+
       }
     );
 
-    document.getElementById("refresh").addEventListener("click",
+    searchInput.addEventListener("input", displayLocations);
+
+    countryFilter.addEventListener("change", displayLocations);
+
+    document.getElementById("refresh").addEventListener(
+      "click",
       loadLocations
     );
 
-    document.getElementById("logout").addEventListener("click",
+    document.getElementById("logout").addEventListener(
+      "click",
       async () => {
-        await db.auth.signOut();
+
+        const { error } = await db.auth.signOut();
+
+        if (error) {
+
+          message.textContent = "Logout failed: " + error.message;
+
+          return;
+
+        }
+
         dashboardSection.hidden = true;
+
         loginSection.hidden = false;
+
         locationsBody.replaceChildren();
+
+        allLocations = [];
+
+        searchInput.value = "";
+
+        countryFilter.replaceChildren();
+
+        const option = document.createElement("option");
+
+        option.value = "";
+
+        option.textContent = "All Countries";
+
+        countryFilter.appendChild(option);
+
         document.getElementById("count").textContent = "";
+
+        document.getElementById("password").value = "";
+
         message.textContent = "You have logged out.";
+
       }
     );
 
     checkSession();
+
   </script>
+
 </body>
 </html>
