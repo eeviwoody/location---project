@@ -3,10 +3,31 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Share Your Location</title>
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Cute Penguin | Location Sharing</title>
+
+    <!-- Link preview for messaging apps -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Cute Penguin 🐧">
+    <meta property="og:description"
+          content="Visit our penguin-themed location-sharing page.">
+    <meta property="og:url"
+          content="https://location-project-0u5a.onrender.com/">
+    <meta property="og:image"
+          content="https://location-project-0u5a.onrender.com/penguin.png">
+    <meta property="og:image:alt"
+          content="Cute penguin with a blue hat and scarf">
+
+    <meta name="twitter:card"
+          content="summary_large_image">
 
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             font-family: Arial, sans-serif;
             background: #f1f5f9;
@@ -22,13 +43,21 @@
             padding: 35px;
             border-radius: 15px;
             text-align: center;
-            max-width: 380px;
-            margin: 20px;
+            max-width: 400px;
+            width: calc(100% - 32px);
             box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        }
+
+        .penguin {
+            display: block;
+            width: 200px;
+            max-width: 100%;
+            margin: 0 auto 20px;
         }
 
         h1 {
             color: #172554;
+            font-size: 26px;
         }
 
         p {
@@ -50,6 +79,11 @@
             background: #1d4ed8;
         }
 
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         #result {
             margin-top: 20px;
             font-weight: bold;
@@ -58,29 +92,47 @@
 </head>
 
 <body>
+    <main class="container">
 
-    <div class="container">
+        <img
+            src="/penguin.png"
+            alt="Cute penguin wearing a blue hat and scarf"
+            class="penguin"
+        >
 
         <h1>Share Your Location</h1>
 
         <p>
-            Would you like to share your current location?
-            Your location will only be sent if you choose
-            to allow location access.
+            Welcome! Would you like to share your
+            current location?
+
+            If you choose to share, your browser
+            will request location permission.
+
+            Your coordinates will be sent to
+            our private location dashboard.
         </p>
 
-        <button onclick="shareLocation()">
+        <button
+            id="shareButton"
+            type="button"
+            onclick="shareLocation()"
+        >
             Share My Location
         </button>
 
-        <p id="result"></p>
+        <p id="result" role="status" aria-live="polite"></p>
 
-    </div>
+    </main>
 
     <script>
         async function shareLocation() {
 
-            const result = document.getElementById("result");
+            const result =
+                document.getElementById("result");
+
+            const button =
+                document.getElementById("shareButton");
 
             if (!navigator.geolocation) {
                 result.textContent =
@@ -88,7 +140,10 @@
                 return;
             }
 
-            result.textContent = "Waiting for your permission...";
+            button.disabled = true;
+
+            result.textContent =
+                "Waiting for your location permission...";
 
             navigator.geolocation.getCurrentPosition(
 
@@ -100,7 +155,7 @@
                     };
 
                     result.textContent =
-                        "Thank you! Your location has been shared.";
+                        "Sending your location...";
 
                     try {
                         const response = await fetch("/location", {
@@ -111,25 +166,36 @@
                             body: JSON.stringify(locationData)
                         });
 
-                        if (!response.ok) {
+                        if (response.ok) {
+                            result.textContent =
+                                "Thank you! Your location has been shared.";
+                        } else {
                             result.textContent =
                                 "We could not submit your location.";
                         }
 
                     } catch (error) {
                         result.textContent =
-                            "Unable to send your location.";
+                            "Unable to send your location. Please try again.";
+                    } finally {
+                        button.disabled = false;
                     }
-
                 },
 
                 function(error) {
                     result.textContent =
                         "Location was not shared. You can continue without sharing.";
+
+                    button.disabled = false;
+                },
+
+                {
+                    enableHighAccuracy: false,
+                    timeout: 15000,
+                    maximumAge: 0
                 }
             );
         }
     </script>
-
 </body>
 </html>
